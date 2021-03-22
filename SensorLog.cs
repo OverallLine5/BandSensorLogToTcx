@@ -363,6 +363,7 @@ namespace BandSensorLogToTcx
 		public System.DateTime LastSplitTime { get; set; }
 		public System.DateTime EndTime { get; set; }
 		public List<WorkoutPoint> TrackPoints { get; }
+		public int LastHR { get; set; }
 
 		public WorkoutSummary Summary;
 		public string Notes { get; set; }
@@ -826,7 +827,7 @@ namespace BandSensorLogToTcx
 
 				if( currentWorkout != null )
 				{
-					if( sequence.HeartRates.Count > 0 )
+					if( ( type & ExportType.HeartRate ) == ExportType.HeartRate && sequence.HeartRates.Count > 0 )
 					{
 						if( currentWorkout.Type == EventType.Sleeping )
 						{
@@ -1034,34 +1035,34 @@ namespace BandSensorLogToTcx
 					else
 						lastTemperature = temperatureList[date];
 
-					if( heartListDate > System.DateTime.MinValue )
+					// determine cadence in steps per minute
+					if( lastSteps > lastStepCount )
 					{
-						// determine cadence in steps per minute
-						if( lastSteps > lastStepCount )
+						if( lastStepCount > 0 )
 						{
-							if( lastStepCount > 0 )
-							{
-								var stepsDiff = lastSteps - lastStepCount;
-								var stepsSpanFactor = ( ( date - lastStepCountDate ).TotalSeconds / 60 );
+							var stepsDiff = lastSteps - lastStepCount;
+							var stepsSpanFactor = ( ( date - lastStepCountDate ).TotalSeconds / 60 );
 
-								lastCadence = (uint) ( stepsDiff / stepsSpanFactor );
-							}
-							lastStepCount = lastSteps;
-							lastStepCountDate = date;
+							lastCadence = (uint) ( stepsDiff / stepsSpanFactor );
 						}
-
-						currenWorkout.TrackPoints.Add(
-							new WorkoutPoint()
-							{
-								Time = date,
-								Position = positionList[date],
-								Elevation = elevationList[date],
-								HeartRateBpm = heartRateList[heartListDate],
-								GalvanicSkinResponse = lastGalvanic,
-								SkinTemperature = lastTemperature,
-								Cadence = lastCadence
-							} );
+						lastStepCount = lastSteps;
+						lastStepCountDate = date;
 					}
+
+					if( heartRateList.Count > 0 && heartRateList.ContainsKey( heartListDate ) )
+						currenWorkout.LastHR = heartRateList[heartListDate];
+
+					currenWorkout.TrackPoints.Add(
+						new WorkoutPoint()
+						{
+							Time = date,
+							Position = positionList[date],
+							Elevation = elevationList[date],
+							HeartRateBpm = currenWorkout.LastHR,
+							GalvanicSkinResponse = lastGalvanic,
+							SkinTemperature = lastTemperature,
+							Cadence = lastCadence
+						} );
 				}
 			}
 			return true;
